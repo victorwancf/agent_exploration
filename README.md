@@ -130,8 +130,7 @@ To add more specialized agents:
 graph TD
     subgraph "Orchestrator"
         A[User Query] --> B{OrchestratorAgent};
-        B --> C{1. route_query};
-        C --> D{2. process_with_agent};
+        B --> D{Process_with_agent};
     end
 
     subgraph "Specialized Agents"
