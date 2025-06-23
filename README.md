@@ -41,33 +41,33 @@ This project demonstrates an agent orchestration system with two specialized age
 ```mermaid
 graph TD
     subgraph User Interaction
-        A[User] -->|1. Sends Query| B("main.py FastAPI");
+        A[User] -->|Sends Query| B("main.py FastAPI");
     end
 
     subgraph Orchestration Layer
-        B -->|2. Invokes| C{"orchestrator_agent.py"};
-        C -->|3. Routes Query| D["Node: route_query"];
-        D -->|4. Reads Agent Info| E["config/agent_registry.txt"];
-        D -->|5. Selects Agent via AI| F(Gemini Model);
-        C -->|6. Processes Query| G["Node: process_with_agent"];
+        B -->|Invokes| C{"orchestrator_agent.py"};
+        C -->|Routes Query| D["Node: route_query"];
+        D -->|Reads Agent Info| E["config/agent_registry.txt"];
+        D -->|Selects Agent via AI| F(Gemini Model);
+        C -->|Processes Query| G["Node: process_with_agent"];
     end
 
     subgraph Agent Layer
-        G -->|7a. HTTP POST Request| H("agents/research_agent.py");
-        G -->|7b. HTTP POST Request| I("agents/content_writing_agent.py");
+        G -->|HTTP POST to Research| H("agents/research_agent.py");
+        G -->|HTTP POST to Content| I("agents/content_writing_agent.py");
     end
 
     subgraph Data & AI Layer
-        H -->|8a. Reads Data| J["data/*.csv"];
-        I -->|8b. Generates Content via AI| K(Gemini Model);
+        H -->|Reads Data| J["data/*.csv"];
+        I -->|Generates Content via AI| K(Gemini Model);
     end
 
     subgraph Response Flow
-        H -->|9a. Returns Result| G;
-        I -->|9b. Returns Result| G;
-        G -->|10. Formats Response| C;
-        C -->|11. Sends Final Response| B;
-        B -->|12. Returns to User| A;
+        H -->|Returns Result| G;
+        I -->|Returns Result| G;
+        G -->|Formats Response| C;
+        C -->|Sends Final Response| B;
+        B -->|Returns to User| A;
     end
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
