@@ -36,6 +36,16 @@ This project demonstrates an agent orchestration system with two specialized age
    - The agent processes the query and returns a response
    - The orchestrator returns the final response to the user
 
+## Simulating the A2A Protocol
+
+This project simulates a basic Agent-to-Agent (A2A) communication protocol. In a true A2A system, agents need a way to discover each other, understand their capabilities, and communicate. This repository mimics that process in the following way:
+
+1.  **Service Discovery**: The `config/agent_registry.txt` file acts as a centralized service registry. Instead of agents broadcasting their presence, the orchestrator looks up available agents in this file.
+2.  **Capability Assessment**: The registry contains a `description` and a list of `capabilities` for each agent. The orchestrator uses this information (with the help of an AI model) to assess which agent is best suited for a task, simulating a capability negotiation step.
+3.  **Direct Communication**: Once an agent is selected, the orchestrator uses the `endpoint` from the registry to open a direct line of communication by sending an HTTP request, just as one agent would call another's API in a real A2A system.
+
+This approach provides a simplified but effective model of how more complex, decentralized agent systems can be designed.
+
 ## Architecture Diagram
 
 ```mermaid
@@ -44,25 +54,25 @@ graph TD
         A[User] -->|Sends Query| B("main.py FastAPI");
     end
 
-    subgraph Orchestration Layer
+    subgraph "Orchestration & A2A Simulation"
         B -->|Invokes| C{"orchestrator_agent.py"};
-        C -->|Routes Query| D["Node: route_query"];
-        D -->|Reads Agent Info| E["config/agent_registry.txt"];
-        D -->|Selects Agent via AI| F(Gemini Model);
-        C -->|Processes Query| G["Node: process_with_agent"];
+        C -->|1. Routes Query| D["Node: route_query"];
+        D -->|2. Service Discovery| E["config/agent_registry.txt"];
+        D -->|3. Capability Assessment (AI)| F(Gemini Model);
+        C -->|4. Processes Query| G["Node: process_with_agent"];
     end
 
-    subgraph Agent Layer
-        G -->|HTTP POST to Research| H("agents/research_agent.py");
-        G -->|HTTP POST to Content| I("agents/content_writing_agent.py");
+    subgraph "Agent Layer (Services)"
+        G -->|5a. A2A Communication (HTTP)| H("agents/research_agent.py");
+        G -->|5b. A2A Communication (HTTP)| I("agents/content_writing_agent.py");
     end
 
-    subgraph Data & AI Layer
-        H -->|Reads Data| J["data/*.csv"];
-        I -->|Generates Content via AI| K(Gemini Model);
+    subgraph "Data & AI Layer"
+        H -->|6a. Reads Data| J["data/*.csv"];
+        I -->|6b. Generates Content via AI| K(Gemini Model);
     end
 
-    subgraph Response Flow
+    subgraph "Response Flow"
         H -->|Returns Result| G;
         I -->|Returns Result| G;
         G -->|Formats Response| C;
@@ -70,9 +80,8 @@ graph TD
         B -->|Returns to User| A;
     end
 
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style E fill:#ffc,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    style G fill:#ccf,stroke:#333,stroke-width:2px
     style H fill:#fb9,stroke:#333,stroke-width:2px
     style I fill:#9fb,stroke:#333,stroke-width:2px
 ```
