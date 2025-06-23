@@ -36,6 +36,47 @@ This project demonstrates an agent orchestration system with two specialized age
    - The agent processes the query and returns a response
    - The orchestrator returns the final response to the user
 
+## Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph User Interaction
+        A[User] -->|1. Sends Query| B(main.py FastAPI);
+    end
+
+    subgraph Orchestration Layer
+        B -->|2. Invokes| C{orchestrator_agent.py};
+        C -->|3. Routes Query| D[Node: route_query];
+        D -->|4. Reads Agent Info| E[config/agent_registry.txt];
+        D -->|5. Selects Agent via AI| F(Gemini Model);
+        C -->|6. Processes Query| G[Node: process_with_agent];
+    end
+
+    subgraph Agent Layer
+        G -->|7a. HTTP POST Request| H(agents/research_agent.py);
+        G -->|7b. HTTP POST Request| I(agents/content_writing_agent.py);
+    end
+
+    subgraph Data & AI Layer
+        H -->|8a. Reads Data| J[data/*.csv];
+        I -->|8b. Generates Content via AI| K(Gemini Model);
+    end
+
+    subgraph Response Flow
+        H -->|9a. Returns Result| G;
+        I -->|9b. Returns Result| G;
+        G -->|10. Formats Response| C;
+        C -->|11. Sends Final Response| B;
+        B -->|12. Returns to User| A;
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style H fill:#fb9,stroke:#333,stroke-width:2px
+    style I fill:#9fb,stroke:#333,stroke-width:2px
+```
+
 ## Setup and Running
 
 1. Ensure you have Python 3.8+ installed
