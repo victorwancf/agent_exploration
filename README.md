@@ -56,20 +56,20 @@ graph TD
 
     subgraph "Orchestration & A2A Simulation"
         B -->|Invokes| C{"orchestrator_agent.py"};
-        C -->|"1. Routes Query"| D["Node: route_query"];
-        D -->|"2. Service Discovery"| E["config/agent_registry.txt"];
-        D -->|"3. Capability Assessment (AI)"| F(Gemini Model);
-        C -->|"4. Processes Query"| G["Node: process_with_agent"];
+        C -->|"Routes Query"| D["Node: route_query"];
+        D -->|"Service Discovery"| E["config/agent_registry.txt"];
+        D -->|"Capability Assessment (AI)"| F(Gemini Model);
+        C -->|"Processes Query"| G["Node: process_with_agent"];
     end
 
     subgraph "Agent Layer (Services)"
-        G -->|"5a. A2A Communication (HTTP)"| H["agents/research_agent.py"];
-        G -->|"5b. A2A Communication (HTTP)"| I["agents/content_writing_agent.py"];
+        G -->|"A2A Communication (HTTP)"| H["agents/research_agent.py"];
+        G -->|"A2A Communication (HTTP)"| I["agents/content_writing_agent.py"];
     end
 
     subgraph "Data & AI Layer"
-        H -->|"6a. Reads Data"| J["data/*.csv"];
-        I -->|"6b. Generates Content via AI"| K(Gemini Model);
+        H -->|"Reads Data"| J["data/*.csv"];
+        I -->|"Generates Content via AI"| K(Gemini Model);
     end
 
     subgraph "Response Flow"
