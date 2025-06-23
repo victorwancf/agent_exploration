@@ -1,0 +1,16 @@
+# Agent Registry - A2A Protocol Configuration
+# This file contains information about available agents, their endpoints, and capabilities
+
+[AGENT_RESEARCH]
+name = Research Agent
+description = Specialized in information retrieval, fact checking, literature review, and source discovery
+endpoint = http://localhost:8001/query
+capabilities = ["information_retrieval", "fact_checking", "literature_review", "source_discovery"]
+
+[AGENT_CONTENT_WRITING]
+name = Content Writing Agent
+description = Specialized in content creation, editing, style adaptation, and summarization
+endpoint = http://localhost:8002/query
+capabilities = ["content_creation", "editing", "style_adaptation", "summarization"]
+
+# END OF REGISTRY
