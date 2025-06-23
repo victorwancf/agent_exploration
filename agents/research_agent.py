@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 import uvicorn
 import pandas as pd
 import glob
+import os
 
 class Query(BaseModel):
     query: str
@@ -16,7 +17,7 @@ class Response(BaseModel):
 
 app = FastAPI(title="Research Agent")
 
-DATA_DIR = "data"
+DATA_DIR = "../data"
 
 @app.post("/query", response_model=Response)
 async def process_query(query_data: Query):
@@ -33,38 +34,66 @@ async def process_query(query_data: Query):
     query_text = query_data.query.lower()
     
     # If the query is about searching, finding, or analyzing, search the CSVs
-    if any(k in query_text for k in ["find", "search", "analyze", "information", "review", "posts", "tweet", "twitter"]):
-        # Gather all CSV files in the data directory
-        csv_files = glob.glob(f"{DATA_DIR}/*.csv")
-        results = []
-        for file in csv_files:
-            try:
-                df = pd.read_csv(file, header=None, names=["post"])
-                # Search for posts containing any keyword from the query
-                matches = df[df["post"].str.lower().str.contains(query_text, na=False)]
-                if not matches.empty:
-                    results.append({
-                        "file": file.split("/")[-1],
-                        "count": len(matches),
-                        "examples": matches["post"].head(3).tolist()
-                    })
-            except Exception as e:
-                continue
-        if results:
-            summary = f"Found relevant posts in {len(results)} file(s).\n"
-            for r in results:
-                summary += f"\nFile: {r['file']} (Matches: {r['count']})\nExamples: " + " | ".join(r['examples'])
-            return Response(
-                result=summary,
-                confidence=0.95,
-                metadata={"files_with_matches": [r["file"] for r in results], "total_matches": sum(r["count"] for r in results)}
-            )
-        else:
-            return Response(
-                result="No relevant posts found in the Twitter data.",
-                confidence=0.5,
-                metadata={"searched_files": [f.split("/")[-1] for f in csv_files]}
-            )
+    if any(k in query_text for k in ["find", "search", "analyze", "information", "review", "posts", "tweet", "twitter", "experiences", "feedback", "critiques"]):
+        
+        search_term = None
+        # Airline-specific keywords
+        if "skyglide" in query_text:
+            search_term = "skyglide"
+        elif "airvista" in query_text:
+            search_term = "airvista"
+        elif "aeroexpress" in query_text:
+            search_term = "aeroexpress"
+        elif "horizonhawk" in query_text:
+            search_term = "horizonhawk"
+        elif "flight delay" in query_text or "delayed" in query_text:
+            search_term = "delay"
+        # General keywords
+        elif "covid-19" in query_text or "covid" in query_text:
+            search_term = "covid"
+        elif "climate change" in query_text:
+            search_term = "climate"
+        elif "stock market" in query_text or "stock" in query_text:
+            search_term = "stock"
+        elif "self driving" in query_text or "self-driving" in query_text:
+            search_term = "self driving"
+        elif "metoo" in query_text:
+            search_term = "metoo"
+
+        if search_term:
+            # Gather all CSV files in the data directory
+            csv_files = glob.glob(f"{DATA_DIR}/*.csv")
+            results = []
+            for file in csv_files:
+                try:
+                    df = pd.read_csv(file, header=None, names=["post"])
+                    # Search for posts containing the determined search term
+                    matches = df[df["post"].str.lower().str.contains(search_term, na=False)]
+                    if not matches.empty:
+                        results.append({
+                            "file": os.path.basename(file),
+                            "count": len(matches),
+                            "examples": matches["post"].head(3).tolist()
+                        })
+                except Exception as e:
+                    continue
+            
+            if results:
+                summary = f"Found relevant posts in {len(results)} file(s).\n"
+                for r in results:
+                    summary += f"\nFile: {r['file']} (Matches: {r['count']})\nExamples: " + " | ".join(r['examples'])
+                return Response(
+                    result=summary,
+                    confidence=0.95,
+                    metadata={"files_with_matches": [r["file"] for r in results], "total_matches": sum(r["count"] for r in results)}
+                )
+            else:
+                return Response(
+                    result="No relevant posts found in the Twitter data.",
+                    confidence=0.5,
+                    metadata={"searched_files": [os.path.basename(f) for f in csv_files]}
+                )
+
     # Simulate research responses based on the query
     elif "find" in query_text or "search" in query_text or "information" in query_text:
         return Response(
