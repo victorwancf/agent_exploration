@@ -8,6 +8,9 @@ import google.generativeai as genai
 import asyncio
 import json
 from langgraph.graph import StateGraph, END
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Define the state for our graph
 class AgentState(TypedDict):
@@ -46,6 +49,7 @@ def route_query(state: AgentState) -> AgentState:
     # Extract the last human message
     human_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
     if not human_messages:
+        print("[route_query] No human messages found.")
         return {**state, "next_action": "END", "response": "No query provided."}
     
     query = human_messages[-1].content
@@ -62,9 +66,10 @@ def route_query(state: AgentState) -> AgentState:
     router_prompt = router_template.format(agent_descriptions=agent_descriptions, query=query)
     
     # Use Gemini to determine the routing
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
     response = model.generate_content(router_prompt)
     response_text = response.text if hasattr(response, 'text') else response.candidates[0].content.parts[0].text
+    print("[route_query] Gemini model response:", response_text)
     
     # Parse the response to extract the selected agent
     selected_agent = None
@@ -72,26 +77,32 @@ def route_query(state: AgentState) -> AgentState:
         if line.startswith("AGENT_NAME:"):
             selected_agent = line.split(":", 1)[1].strip()
             break
+    print(f"[route_query] Selected agent: {selected_agent}")
     
     # If we couldn't determine an agent, provide a helpful response
     if not selected_agent or selected_agent not in agent_registry:
+        print("[route_query] Could not determine a valid agent.")
         return {
             **state, 
             "next_action": "END",
             "response": "I couldn't determine which agent would be best suited for your query. Could you please provide more specific information?"
         }
     
-    return {
+    result_state = {
         **state,
         "current_agent": selected_agent,
-        "next_action": "PROCESS"
+        "next_action": "process"
     }
+    print("[route_query] Returning state:", result_state)
+    return result_state
 
 # Define a function to process the query with the selected agent
 async def process_with_agent(state: AgentState) -> AgentState:
     """Process the query using the selected agent."""
+    print("[process_with_agent] Input state:", state)
     agent_id = state["current_agent"]
     if not agent_id or agent_id not in agent_registry:
+        print("[process_with_agent] No valid agent selected.")
         return {
             **state,
             "next_action": "END",
@@ -104,6 +115,7 @@ async def process_with_agent(state: AgentState) -> AgentState:
     # Extract the query from the last human message
     human_messages = [msg for msg in state["messages"] if isinstance(msg, HumanMessage)]
     if not human_messages:
+        print("[process_with_agent] No human messages found.")
         return {**state, "next_action": "END", "response": "No query provided."}
     
     query = human_messages[-1].content
@@ -116,43 +128,38 @@ async def process_with_agent(state: AgentState) -> AgentState:
                 json={"query": query},
                 timeout=10.0
             )
-            
+            print(f"[process_with_agent] Agent API response status: {response.status_code}")
             if response.status_code == 200:
                 result = response.json()
-                
+                print(f"[process_with_agent] Agent API response JSON: {result}")
                 # Format the response
-                formatted_response = (
-                    f"Response from {agent_details['name']}:\n\n"
-                    f"{result['result']}\n\n"
-                    f"Confidence: {result['confidence']}"
-                )
-                
-                if result.get('metadata'):
-                    metadata_str = "\n".join([f"- {k}: {v}" for k, v in result['metadata'].items()])
-                    formatted_response += f"\n\nAdditional Information:\n{metadata_str}"
-                
+                formatted_response = result.get('result', '')
                 return {
                     **state,
                     "next_action": "END",
                     "response": formatted_response
                 }
             else:
+                print(f"[process_with_agent] Agent API error: {response.text}")
                 return {
                     **state,
                     "next_action": "END",
                     "response": f"Error from {agent_details['name']}: {response.text}"
                 }
         except Exception as e:
+            print(f"[process_with_agent] Exception: {str(e)}")
             return {
                 **state,
                 "next_action": "END",
                 "response": f"Failed to communicate with {agent_details['name']}: {str(e)}"
             }
-
-# Helper function to handle the asynchronous process_with_agent
-def process_with_agent_sync(state: AgentState) -> AgentState:
-    """Synchronous wrapper for the asynchronous process_with_agent function."""
-    return asyncio.run(process_with_agent(state))
+    # Fallback in case nothing above returns
+    print("[process_with_agent] Unexpected code path reached.")
+    return {
+        **state,
+        "next_action": "END",
+        "response": "No response generated by the agent."
+    }
 
 # Define a function to decide the next step in the workflow
 def decide_next_step(state: AgentState) -> Literal["route", "process", "end"]:
@@ -166,15 +173,12 @@ def build_orchestrator_graph():
     
     # Add the nodes
     workflow.add_node("route", route_query)
-    workflow.add_node("process", process_with_agent_sync)
+    workflow.add_node("process", process_with_agent)  # async node
     
-    # Define the conditional edges
+    # Define the conditional edges (CORRECTED)
     workflow.add_conditional_edges(
         "route",
-        {
-            "process": lambda state: state["next_action"] == "PROCESS",
-            END: lambda state: state["next_action"] == "END",
-        }
+        lambda state: "process" if state["next_action"] == "process" else END
     )
     workflow.add_edge("process", END)
     
@@ -183,11 +187,10 @@ def build_orchestrator_graph():
     
     return workflow.compile()
 
-# Create the graph
+
 orchestrator_graph = build_orchestrator_graph()
 
-# Define a function to run the orchestrator
-def run_orchestrator(query: str) -> str:
+async def run_orchestrator(query: str) -> str:
     """Run the orchestrator with a given query and return the response."""
     # Initialize the state
     initial_state = {
@@ -197,11 +200,12 @@ def run_orchestrator(query: str) -> str:
         "response": None
     }
     
-    # Run the graph
-    final_state = orchestrator_graph.invoke(initial_state)
-    
-    # Return the response
-    return final_state["response"]
+    # Run the graph (async)
+    final_state = await orchestrator_graph.ainvoke(initial_state)
+    print("[run_orchestrator] Final state after graph execution:", final_state)
+    # Return the response, ensuring it's always a string
+    response = final_state.get("response")
+    return response if response is not None else "No response generated by the orchestrator."
 
 if __name__ == "__main__":
     # Example usage

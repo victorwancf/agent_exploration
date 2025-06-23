@@ -21,7 +21,7 @@ app = FastAPI(title="Agent Orchestrator API")
 async def process_query(query_input: QueryInput):
     """Process a query through the orchestrator agent"""
     try:
-        response = run_orchestrator(query_input.query)
+        response = await run_orchestrator(query_input.query)
         return QueryResponse(response=response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
