@@ -41,24 +41,24 @@ This project demonstrates an agent orchestration system with two specialized age
 ```mermaid
 graph TD
     subgraph User Interaction
-        A[User] -->|1. Sends Query| B(main.py FastAPI);
+        A[User] -->|1. Sends Query| B("main.py FastAPI");
     end
 
     subgraph Orchestration Layer
-        B -->|2. Invokes| C{orchestrator_agent.py};
-        C -->|3. Routes Query| D[Node: route_query];
-        D -->|4. Reads Agent Info| E[config/agent_registry.txt];
+        B -->|2. Invokes| C{"orchestrator_agent.py"};
+        C -->|3. Routes Query| D["Node: route_query"];
+        D -->|4. Reads Agent Info| E["config/agent_registry.txt"];
         D -->|5. Selects Agent via AI| F(Gemini Model);
-        C -->|6. Processes Query| G[Node: process_with_agent];
+        C -->|6. Processes Query| G["Node: process_with_agent"];
     end
 
     subgraph Agent Layer
-        G -->|7a. HTTP POST Request| H(agents/research_agent.py);
-        G -->|7b. HTTP POST Request| I(agents/content_writing_agent.py);
+        G -->|7a. HTTP POST Request| H("agents/research_agent.py");
+        G -->|7b. HTTP POST Request| I("agents/content_writing_agent.py");
     end
 
     subgraph Data & AI Layer
-        H -->|8a. Reads Data| J[data/*.csv];
+        H -->|8a. Reads Data| J["data/*.csv"];
         I -->|8b. Generates Content via AI| K(Gemini Model);
     end
 
