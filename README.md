@@ -100,7 +100,7 @@ curl -X POST "http://localhost:8000/query" \
 ```
 
 ## LangGraph Implementation
-
+ 
 The orchestrator uses LangGraph to create a workflow that:
 1. Routes the query to the appropriate agent
 2. Processes the query with the selected agent
