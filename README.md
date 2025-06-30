@@ -11,6 +11,8 @@ This project demonstrates an agent orchestration system with two specialized age
 │   └── content_writing_agent.py     # Content writing specialist agent
 ├── config/
 │   └── agent_registry.txt           # Agent registry file (A2A protocol simulation)
+├── data/
+│   └── *.csv                        # Sample data files for the research agent
 ├── orchestrator/
 │   └── orchestrator_agent.py        # Orchestrator agent using LangGraph
 ├── main.py                          # Main script to run all components
@@ -90,7 +92,7 @@ graph TD
 
 1. Ensure you have Python 3.8+ installed
 2. Install the dependencies: `pip install -r requirements.txt`
-3. Set your Gemini API key: `export GEMINI_API_KEY=your-gemini-key` (or use `set` on Windows)
+3. Set your Google API key: `export GOOGLE_API_KEY='your-google-api-key'` (or use `set GOOGLE_API_KEY='your-google-api-key'` on Windows)
 4. Run the system: `python main.py`
 
 This will start:
