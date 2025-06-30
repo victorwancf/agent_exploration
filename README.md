@@ -11,6 +11,8 @@ This project demonstrates an agent orchestration system with two specialized age
 │   └── content_writing_agent.py     # Content writing specialist agent
 ├── config/
 │   └── agent_registry.txt           # Agent registry file (A2A protocol simulation)
+├── data/
+│   └── *.csv                        # Sample data files for the research agent
 ├── orchestrator/
 │   └── orchestrator_agent.py        # Orchestrator agent using LangGraph
 ├── main.py                          # Main script to run all components
@@ -90,7 +92,7 @@ graph TD
 
 1. Ensure you have Python 3.8+ installed
 2. Install the dependencies: `pip install -r requirements.txt`
-3. Set your Gemini API key: `export GEMINI_API_KEY=your-gemini-key` (or use `set` on Windows)
+3. Set your Google API key: `export GOOGLE_API_KEY='your-google-api-key'` (or use `set GOOGLE_API_KEY='your-google-api-key'` on Windows)
 4. Run the system: `python main.py`
 
 This will start:
@@ -123,32 +125,3 @@ To add more specialized agents:
 1. Create a new agent server implementation
 2. Add the agent details to the `agent_registry.txt` file
 3. Update the orchestrator logic if needed to handle the new agent capabilities
-
-## Detailed Orchestrator Workflow
-
-```mermaid
-graph TD
-    subgraph "Orchestrator"
-        A[User Query] --> B{OrchestratorAgent};
-        B --> D{Process_with_agent};
-    end
-
-    subgraph "Specialized Agents"
-        D -- "Research Request" --> E[ResearchAgent];
-        D -- "Content Request" --> F[ContentWritingAgent];
-    end
-
-    subgraph "Agent Capabilities"
-        E --> G["Search Data (CSVs)"];
-        F --> H["Generate/Edit Content"];
-    end
-
-    subgraph "Response"
-        G --> I{Final Response};
-        H --> I;
-    end
-
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style E fill:#bbf,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-```
