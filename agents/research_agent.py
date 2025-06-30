@@ -2,9 +2,96 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import uvicorn
+from langgraph.graph import StateGraph, END
 import pandas as pd
 import glob
 import os
+
+# Define the state for the research agent
+default_data_dir = "../data"
+
+class ResearchAgentState(BaseModel):
+    query: str
+    context: Optional[Dict[str, Any]] = None
+    result: Optional[str] = None
+    confidence: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+# The main logic node for the research agent
+def research_node(state: ResearchAgentState) -> ResearchAgentState:
+    query_text = state.query.lower()
+    search_term = None
+    # Airline-specific keywords
+    if "skyglide" in query_text:
+        search_term = "skyglide"
+    elif "airvista" in query_text:
+        search_term = "airvista"
+    elif "aeroexpress" in query_text:
+        search_term = "aeroexpress"
+    elif "horizonhawk" in query_text:
+        search_term = "horizonhawk"
+    elif "flight delay" in query_text or "delayed" in query_text:
+        search_term = "delay"
+    elif "covid-19" in query_text or "covid" in query_text:
+        search_term = "covid"
+    elif "climate change" in query_text:
+        search_term = "climate"
+    elif "stock market" in query_text or "stock" in query_text:
+        search_term = "stock"
+    elif "self driving" in query_text or "self-driving" in query_text:
+        search_term = "self driving"
+    elif "metoo" in query_text:
+        search_term = "metoo"
+    # ... add more keyword logic as needed ...
+
+    result = "No relevant data found."
+    confidence = 0.5
+    metadata = {}
+    if search_term:
+        files = glob.glob(os.path.join(default_data_dir, "*.csv"))
+        for file in files:
+            df = pd.read_csv(file)
+            # Find rows where any cell contains the search_term
+            mask = df.apply(lambda row: row.astype(str).str.lower().str.contains(search_term).any(), axis=1)
+            matching_rows = df[mask]
+            if not matching_rows.empty:
+                # Try to extract feedback columns if present
+                feedback_cols = [col for col in matching_rows.columns if 'feedback' in col.lower() or 'comment' in col.lower() or 'review' in col.lower()]
+                if feedback_cols:
+                    feedbacks = matching_rows[feedback_cols].astype(str).agg('\n'.join, axis=1).tolist()
+                else:
+                    feedbacks = matching_rows.astype(str).agg(', '.join, axis=1).tolist()
+                # Limit to first 3 feedbacks for brevity
+                feedback_sample = feedbacks[:3]
+                feedback_text = '\n'.join(feedback_sample)
+                result = f"Feedback for '{search_term}' from {os.path.basename(file)}:\n{feedback_text}"
+                confidence = 0.95
+                metadata = {"file": os.path.basename(file), "matches": len(matching_rows)}
+                break
+    else:
+        result = "No specific search term found in query."
+        confidence = 0.5
+    return ResearchAgentState(
+        query=state.query,
+        context=state.context,
+        result=result,
+        confidence=confidence,
+        metadata=metadata
+    )
+
+# Build the LangGraph for the research agent
+workflow = StateGraph(ResearchAgentState)
+workflow.add_node("research", research_node)
+workflow.set_entry_point("research")
+workflow.add_edge("research", END)
+research_agent_app = workflow.compile()
+
+# Example async runner for the agent
+def run_research_agent(query: str, context: Optional[Dict[str, Any]] = None):
+    state = ResearchAgentState(query=query, context=context)
+    return research_agent_app.invoke(state)
+
+app = FastAPI(title="Research Agent")
 
 class Query(BaseModel):
     query: str
@@ -15,115 +102,23 @@ class Response(BaseModel):
     confidence: float
     metadata: Optional[Dict[str, Any]] = None
 
-app = FastAPI(title="Research Agent")
-
-DATA_DIR = "../data"
-
 @app.post("/query", response_model=Response)
 async def process_query(query_data: Query):
-    """
-    Process a research-related query and return findings.
-    Now supports searching and analyzing Twitter post CSVs in the data directory.
-    
-    This agent specializes in:
-    - Information retrieval
-    - Fact checking
-    - Literature review
-    - Source discovery
-    """
-    query_text = query_data.query.lower()
-    
-    # If the query is about searching, finding, or analyzing, search the CSVs
-    if any(k in query_text for k in ["find", "search", "analyze", "information", "review", "posts", "tweet", "twitter", "experiences", "feedback", "critiques"]):
-        
-        search_term = None
-        # Airline-specific keywords
-        if "skyglide" in query_text:
-            search_term = "skyglide"
-        elif "airvista" in query_text:
-            search_term = "airvista"
-        elif "aeroexpress" in query_text:
-            search_term = "aeroexpress"
-        elif "horizonhawk" in query_text:
-            search_term = "horizonhawk"
-        elif "flight delay" in query_text or "delayed" in query_text:
-            search_term = "delay"
-        # General keywords
-        elif "covid-19" in query_text or "covid" in query_text:
-            search_term = "covid"
-        elif "climate change" in query_text:
-            search_term = "climate"
-        elif "stock market" in query_text or "stock" in query_text:
-            search_term = "stock"
-        elif "self driving" in query_text or "self-driving" in query_text:
-            search_term = "self driving"
-        elif "metoo" in query_text:
-            search_term = "metoo"
-
-        if search_term:
-            # Gather all CSV files in the data directory
-            csv_files = glob.glob(f"{DATA_DIR}/*.csv")
-            results = []
-            for file in csv_files:
-                try:
-                    df = pd.read_csv(file, header=None, names=["post"])
-                    # Search for posts containing the determined search term
-                    matches = df[df["post"].str.lower().str.contains(search_term, na=False)]
-                    if not matches.empty:
-                        results.append({
-                            "file": os.path.basename(file),
-                            "count": len(matches),
-                            "examples": matches["post"].head(3).tolist()
-                        })
-                except Exception as e:
-                    continue
-            
-            if results:
-                summary = f"Found relevant posts in {len(results)} file(s).\n"
-                for r in results:
-                    summary += f"\nFile: {r['file']} (Matches: {r['count']})\nExamples: " + " | ".join(r['examples'])
-                return Response(
-                    result=summary,
-                    confidence=0.95,
-                    metadata={"files_with_matches": [r["file"] for r in results], "total_matches": sum(r["count"] for r in results)}
-                )
-            else:
-                return Response(
-                    result="No relevant posts found in the Twitter data.",
-                    confidence=0.5,
-                    metadata={"searched_files": [os.path.basename(f) for f in csv_files]}
-                )
-
-    # Simulate research responses based on the query
-    elif "find" in query_text or "search" in query_text or "information" in query_text:
+    # Convert Query to LangGraph state
+    state = ResearchAgentState(query=query_data.query, context=query_data.context)
+    result_state = research_agent_app.invoke(state)
+    # If result_state is a dict, use keys; if it's an object, use attributes
+    if isinstance(result_state, dict):
         return Response(
-            result="I've found several relevant sources on this topic. The most recent research from Stanford (2024) indicates that the hypothesis has strong empirical support across multiple studies.",
-            confidence=0.89,
-            metadata={"sources": 12, "primary_sources": 7, "recency": "high", "consensus_level": "strong"}
-        )
-    elif "fact check" in query_text or "verify" in query_text or "validate" in query_text:
-        return Response(
-            result="This claim appears to be partially accurate but missing important context. While the core statement is supported by evidence, there are significant qualifications noted in the literature.",
-            confidence=0.92,
-            metadata={"accuracy_rating": "partially accurate", "primary_sources_checked": 5, "contradictory_evidence": "minimal"}
-        )
-    elif "literature" in query_text or "review" in query_text or "papers" in query_text:
-        return Response(
-            result="The literature review reveals three major schools of thought on this topic. The dominant view (supported by 65% of recent papers) favors the mechanistic explanation, while competing theories focus on emergent properties and contextual factors.",
-            confidence=0.94,
-            metadata={"papers_reviewed": 47, "time_period": "2020-2025", "major_researchers": ["Zhang", "Patel", "Yamamoto"]}
-        )
-    elif "background" in query_text or "context" in query_text:
-        return Response(
-            result="This field emerged in the early 2010s and has seen exponential growth since 2018. The foundational work by Rodriguez et al. established the theoretical framework that most current research builds upon.",
-            confidence=0.91,
-            metadata={"historical_depth": "comprehensive", "key_developments": 4, "paradigm_shifts": 1}
+            result=str(result_state.get("result") or ""),
+            confidence=result_state.get("confidence", 0.0),
+            metadata=result_state.get("metadata")
         )
     else:
         return Response(
-            result="I've researched your query and compiled relevant information from authoritative sources. The consensus view suggests the phenomenon is well-established, though some aspects remain under investigation.",
-            confidence=0.80,
-            metadata={"general_research": True, "confidence_factors": ["topic breadth", "evolving field"]}
+            result=str(getattr(result_state, "result", "") or ""),
+            confidence=getattr(result_state, "confidence", 0.0),
+            metadata=getattr(result_state, "metadata", None)
         )
 
 @app.get("/capabilities")

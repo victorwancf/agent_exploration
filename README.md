@@ -123,32 +123,3 @@ To add more specialized agents:
 1. Create a new agent server implementation
 2. Add the agent details to the `agent_registry.txt` file
 3. Update the orchestrator logic if needed to handle the new agent capabilities
-
-## Detailed Orchestrator Workflow
-
-```mermaid
-graph TD
-    subgraph "Orchestrator"
-        A[User Query] --> B{OrchestratorAgent};
-        B --> D{Process_with_agent};
-    end
-
-    subgraph "Specialized Agents"
-        D -- "Research Request" --> E[ResearchAgent];
-        D -- "Content Request" --> F[ContentWritingAgent];
-    end
-
-    subgraph "Agent Capabilities"
-        E --> G["Search Data (CSVs)"];
-        F --> H["Generate/Edit Content"];
-    end
-
-    subgraph "Response"
-        G --> I{Final Response};
-        H --> I;
-    end
-
-    style B fill:#f9f,stroke:#333,stroke-width:2px
-    style E fill:#bbf,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-```
